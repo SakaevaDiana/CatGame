@@ -2,14 +2,17 @@ import * as THREE from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 
 export default class Player {
-  constructor(scene, input) {
+  constructor(scene, input, collision) {
     this.scene = scene;
     this.input = input;
+    this.collision = collision;
 
     this.group = new THREE.Group();
     this.group.position.set(0, 0, 0);
     this.scene.add(this.group);
 
+    this.halfW = 0.25;
+    this.halfD = 0.25;
     this.speed = 5;
     this.jumpSpeed = 7;
     this.gravity = -25;
@@ -141,9 +144,18 @@ export default class Player {
 
     this.velocity.y += this.gravity * delta;
 
-    this.group.position.x += this.velocity.x * delta;
+    const dx = this.velocity.x * delta;
+    const dz = this.velocity.z * delta;
+    const res = this.collision.resolve(
+      this.group.position.x, this.group.position.z,
+      this.halfW, this.halfD, dx, dz,
+      this.group.position.y
+    );
+    if (res.x === this.group.position.x) this.velocity.x = 0;
+    if (res.z === this.group.position.z) this.velocity.z = 0;
+    this.group.position.x = res.x;
+    this.group.position.z = res.z;
     this.group.position.y += this.velocity.y * delta;
-    this.group.position.z += this.velocity.z * delta;
 
     if (this.group.position.y <= 0) {
       this.group.position.y = 0;

@@ -1,4 +1,9 @@
 import Game from './Game.js';
 
-const container = document.getElementById('game-container');
-const game = new Game(container);
+async function start() {
+  const game = new Game(document.getElementById('game-container'));
+  await game.loadEnvironment();
+  document.getElementById('loading').style.display = 'none';
+  game.start();
+}
+start();
