@@ -5,6 +5,40 @@ const DOG_POS = { x: 7, z: -7 };
 const BONE_POS = { x: -16, z: -14 };
 const BEE_POS = { x: 3, z: 3 };
 const FLOWER2_POS = { x: -12, z: 8 };
+const FOX_POS = { x: -5, z: -10 };
+
+const RIDDLES = [
+  {
+    q: 'Рыжая плутовка, зайцев ищет ловко.',
+    answers: ['Волк', 'Лиса', 'Рысь'],
+    correct: 1,
+    fb: ['я не уверена..', 'Точно это же я', 'я не уверена..']
+  },
+  {
+    q: 'Горб иль два есть на спине, им доволен я вполне.',
+    answers: ['Кенгуру', 'Лошадь', 'Верблюд'],
+    correct: 2,
+    fb: ['я не уверена..', 'я не уверена..', 'Точно это же Верблюд']
+  },
+  {
+    q: 'Дом свой носит на спине, не войти тебе и мне.',
+    answers: ['Улитка', 'Кенгуру', 'Ленивец'],
+    correct: 0,
+    fb: ['Точно это же Улитка', 'я не уверена..', 'я не уверена..']
+  },
+  {
+    q: 'Любит она шишки и озорней мальчишки.',
+    answers: ['Белка', 'Обезьяна', 'Куница'],
+    correct: 0,
+    fb: ['Точно это же Белка', 'я не уверена..', 'я не уверена..']
+  },
+  {
+    q: 'Не хожу и не бегу, с сумкой прыгать я могу.',
+    answers: ['Заяц', 'Кенгуру', 'Тушканчик'],
+    correct: 1,
+    fb: ['я не уверена..', 'Точно это же Кенгуру', 'я не уверена..']
+  }
+];
 
 export default class QuestSystem {
   constructor(game) {
@@ -23,6 +57,14 @@ export default class QuestSystem {
     this.beeFollowTime = 0;
     this.beeFlyProgress = 0;
 
+    this.fox = null;
+    this.foxReady = false;
+    this.foxQuestState = 'idle';
+    this.foxQuizIndex = 0;
+
+    this.quizPanel = null;
+    this.quizActive = false;
+
     this.interactPrompt = null;
     this.questBubble = null;
     this.questBubbleActive = false;
@@ -36,6 +78,7 @@ export default class QuestSystem {
     this.loadDog();
     this.loadBee();
     this.loadFlower();
+    this.loadFox();
   }
 
   async loadDog() {
@@ -89,6 +132,130 @@ export default class QuestSystem {
     } catch (err) {
       console.warn('Failed to load flower GLTF:', err);
     }
+  }
+
+  async loadFox() {
+    const loader = new GLTFLoader();
+    try {
+      const gltf = await loader.loadAsync('/assets/models/animal-fox.glb');
+      const model = gltf.scene;
+      model.scale.set(0.6, 0.6, 0.6);
+      model.rotation.y = Math.PI;
+      model.position.set(FOX_POS.x, 0, FOX_POS.z);
+      model.traverse(c => { if (c.isMesh) { c.castShadow = true; c.receiveShadow = true; } });
+      this.game.scene.add(model);
+      this.fox = model;
+      this.foxReady = true;
+    } catch (err) {
+      console.warn('Failed to load fox GLTF:', err);
+    }
+    this.game.collision.addRect(FOX_POS.x, FOX_POS.z, 1, 1, 0.5);
+    this.createQuizPanel();
+  }
+
+  createQuizPanel() {
+    const panel = document.createElement('div');
+    panel.id = 'quiz-panel';
+    panel.style.display = 'none';
+
+    const header = document.createElement('div');
+    header.className = 'quiz-header';
+    panel.appendChild(header);
+
+    const question = document.createElement('div');
+    question.className = 'quiz-question';
+    panel.appendChild(question);
+
+    const answersDiv = document.createElement('div');
+    answersDiv.className = 'quiz-answers';
+    panel.appendChild(answersDiv);
+
+    const feedback = document.createElement('div');
+    feedback.className = 'quiz-feedback';
+    panel.appendChild(feedback);
+
+    const nextBtn = document.createElement('button');
+    nextBtn.className = 'quiz-next';
+    nextBtn.textContent = 'Продолжить';
+    nextBtn.addEventListener('click', () => this.handleQuizNext());
+    panel.appendChild(nextBtn);
+
+    document.body.appendChild(panel);
+    this.quizPanel = panel;
+    this.quizHeader = header;
+    this.quizQuestion = question;
+    this.quizAnswers = answersDiv;
+    this.quizFeedback = feedback;
+    this.quizNextBtn = nextBtn;
+  }
+
+  startQuiz() {
+    this.foxQuizIndex = 0;
+    this.quizActive = true;
+    this.showQuizQuestion();
+  }
+
+  showQuizQuestion() {
+    const r = RIDDLES[this.foxQuizIndex];
+    this.quizHeader.textContent = `Загадка ${this.foxQuizIndex + 1}/${RIDDLES.length}`;
+    this.quizQuestion.textContent = r.q;
+    this.quizAnswers.innerHTML = '';
+    this.quizFeedback.textContent = '';
+    this.quizFeedback.style.display = 'none';
+    this.quizNextBtn.style.display = 'none';
+    this.quizPanel.style.display = 'block';
+
+    r.answers.forEach((a, i) => {
+      const btn = document.createElement('button');
+      btn.className = 'quiz-answer-btn';
+      btn.textContent = a;
+      btn.dataset.index = i;
+      btn.addEventListener('click', () => this.handleQuizAnswer(i));
+      this.quizAnswers.appendChild(btn);
+    });
+  }
+
+  handleQuizAnswer(index) {
+    const r = RIDDLES[this.foxQuizIndex];
+    const btns = this.quizAnswers.querySelectorAll('.quiz-answer-btn');
+    btns.forEach(b => b.style.pointerEvents = 'none');
+
+    if (index === r.correct) {
+      btns[index].classList.add('correct');
+      this.quizFeedback.textContent = 'Лиса: ' + r.fb[index];
+      this.quizFeedback.className = 'quiz-feedback correct';
+      this.quizNextBtn.dataset.action = 'next';
+    } else {
+      btns[index].classList.add('wrong');
+      this.quizFeedback.textContent = 'Лиса: ' + r.fb[index];
+      this.quizFeedback.className = 'quiz-feedback wrong';
+      this.quizNextBtn.dataset.action = 'retry';
+    }
+    this.quizFeedback.style.display = 'block';
+    this.quizNextBtn.style.display = 'block';
+  }
+
+  handleQuizNext() {
+    const action = this.quizNextBtn.dataset.action;
+    if (action === 'next') {
+      this.foxQuizIndex++;
+      if (this.foxQuizIndex >= RIDDLES.length) {
+        this.finishQuiz();
+      } else {
+        this.showQuizQuestion();
+      }
+    } else {
+      this.showQuizQuestion();
+    }
+  }
+
+  finishQuiz() {
+    this.quizPanel.style.display = 'none';
+    this.quizActive = false;
+    this.foxQuestState = 'friend';
+    this.friends++;
+    this.friendCounterEl.innerHTML = '<b>Друзья:</b> ' + this.friends + '/6';
+    this.showQuestBubble('Ты такой умный! Может станем друзьями?');
   }
 
   createPlaceholderDog() {
@@ -263,6 +430,10 @@ export default class QuestSystem {
         this.beeQuestState = 'following';
         if (this.bee) this.bee.rotation.y = this.game.player.rotation.y;
       }
+      if (this.foxQuestState === 'intro') {
+        this.foxQuestState = 'active';
+        this.startQuiz();
+      }
     }
 
     if (this.questBubbleActive) {
@@ -270,10 +441,17 @@ export default class QuestSystem {
       let bubbleTarget;
       if (this.beeQuestState === 'talking' || this.beeQuestState === 'following' || this.beeQuestState === 'bee_friend') {
         bubbleTarget = this.bee ? this.bee.position : null;
+      } else if (this.foxQuestState === 'intro' || this.foxQuestState === 'friend') {
+        bubbleTarget = this.fox ? this.fox.position : null;
       } else {
         bubbleTarget = this.dog ? this.dog.position : null;
       }
       if (bubbleTarget) this.updateQuestBubblePosition(bubbleTarget);
+      return;
+    }
+
+    if (this.quizActive) {
+      this.hideInteractPrompt();
       return;
     }
 
@@ -348,6 +526,33 @@ export default class QuestSystem {
       }
     } else if (this.beeQuestState === 'following') {
       this.hideInteractPrompt();
+    }
+
+    if (this.foxReady && this.foxQuestState === 'idle' && this.fox) {
+      const fx = this.fox.position;
+      const distToFox = Math.sqrt((px - fx.x) ** 2 + (pz - fx.z) ** 2);
+      if (distToFox < interactionDist && !this.questBubbleActive && !this.quizActive) {
+        this.showInteractPrompt('Нажми <b>E</b> чтобы поговорить', fx);
+        if (this.game.input.wasPressed('KeyE')) {
+          this.showQuestBubble('Друзья загадали мне загадки, а я никак не могу их отгадать. Может ты сможешь?');
+          this.foxQuestState = 'intro';
+        }
+      } else {
+        this.hideInteractPrompt();
+      }
+    }
+
+    if (this.foxQuestState === 'friend' && this.fox) {
+      const fx = this.fox.position;
+      const distToFox = Math.sqrt((px - fx.x) ** 2 + (pz - fx.z) ** 2);
+      if (distToFox < interactionDist && !this.questBubbleActive && !this.quizActive) {
+        this.showInteractPrompt('Нажми <b>E</b> чтобы поговорить', fx);
+        if (this.game.input.wasPressed('KeyE')) {
+          this.showQuestBubble('Спасибо, что помог с загадками!');
+        }
+      } else {
+        this.hideInteractPrompt();
+      }
     }
 
     if (this.beeQuestState === 'bee_friend' && this.bee) {
