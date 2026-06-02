@@ -84,6 +84,9 @@ export default class QuestSystem {
     this.questBubble = null;
     this.questBubbleActive = false;
     this._justDismissed = false;
+    this._dismissBlocked = false;
+    this._dismissTimer = null;
+    this._bubbleOwner = null;
     this._onKeyDown = this._onKeyDown.bind(this);
     this._onCutsceneKeyDown = this._onCutsceneKeyDown.bind(this);
 
@@ -273,8 +276,8 @@ export default class QuestSystem {
     this.quizActive = false;
     this.foxQuestState = 'friend';
     this.friends++;
-    this.friendCounterEl.innerHTML = '<b>Друзья:</b> ' + this.friends + '/6';
-    this.showQuestBubble('Ты такой умный! Может станем друзьями?');
+    this.friendCounterEl.innerHTML = '<b>Друзья:</b> ' + this.friends + '/5';
+    this.showQuestBubble('Ты такой умный! Может станем друзьями?', 'fox');
   }
 
   async loadPig() {
@@ -290,7 +293,7 @@ export default class QuestSystem {
       this.pig = model;
       this.pigReady = true;
     } catch (err) { console.warn('Failed to load pig GLTF:', err); }
-    this.game.collision.addRect(PIG_POS.x, PIG_POS.z, 1, 1, 0.5);
+    this.pigCollision = this.game.collision.addRect(PIG_POS.x, PIG_POS.z, 1, 1, 0.5);
   }
 
   async loadHog() {
@@ -306,7 +309,7 @@ export default class QuestSystem {
       this.hog = model;
       this.hogReady = true;
     } catch (err) { console.warn('Failed to load hog GLTF:', err); }
-    this.game.collision.addRect(HOG_POS.x, HOG_POS.z, 1, 1, 0.5);
+    this.hogCollision = this.game.collision.addRect(HOG_POS.x, HOG_POS.z, 1, 1, 0.5);
   }
 
   createCutsceneElements() {
@@ -364,8 +367,16 @@ export default class QuestSystem {
         new THREE.Vector3(MEET_POS.x + 0.6, 0, MEET_POS.z),
         t
       );
-      this.pig.rotation.y = Math.PI / 2;
-      this.hog.rotation.y = -Math.PI / 2;
+      this.pig.rotation.y = Math.PI / 2 + Math.PI / 6;
+      this.hog.rotation.y = -Math.PI / 2 - Math.PI / 6;
+      if (this.pigCollision) {
+        this.pigCollision.x = this.pig.position.x - this.pigCollision.w / 2;
+        this.pigCollision.z = this.pig.position.z - this.pigCollision.d / 2;
+      }
+      if (this.hogCollision) {
+        this.hogCollision.x = this.hog.position.x - this.hogCollision.w / 2;
+        this.hogCollision.z = this.hog.position.z - this.hogCollision.d / 2;
+      }
       if (t >= 1) {
         this.matchPhase = 'fade_out';
         this.matchTime = 0;
@@ -408,8 +419,8 @@ export default class QuestSystem {
     this.matchmaking = false;
     this.pigQuestState = 'matchmade';
     this.hogQuestState = 'matchmade';
-    this.friends++;
-    this.friendCounterEl.innerHTML = '<b>Друзья:</b> ' + this.friends + '/6';
+    this.friends += 2;
+    this.friendCounterEl.innerHTML = '<b>Друзья:</b> ' + this.friends + '/5';
   }
 
   createPlaceholderDog() {
@@ -509,11 +520,15 @@ export default class QuestSystem {
     this.questBubble = container;
   }
 
-  showQuestBubble(text) {
+  showQuestBubble(text, owner) {
     this.questBubble.querySelector('.quest-bubble-text').textContent = text;
     this.questBubble.style.display = 'block';
     this.questBubbleActive = true;
+    this._bubbleOwner = owner || null;
     this.game.input.clearJustPressed();
+    clearTimeout(this._dismissTimer);
+    this._dismissBlocked = true;
+    this._dismissTimer = setTimeout(() => { this._dismissBlocked = false; }, 500);
     window.addEventListener('keydown', this._onKeyDown);
   }
 
@@ -521,7 +536,16 @@ export default class QuestSystem {
     this.questBubble.style.display = 'none';
     this.questBubbleActive = false;
     this._justDismissed = true;
+    this.game.input.clearJustPressed();
+    clearTimeout(this._dismissTimer);
     window.removeEventListener('keydown', this._onKeyDown);
+  }
+
+  _onKeyDown(e) {
+    if (e.repeat) return;
+    if (!this._dismissBlocked && (e.code === 'KeyE' || e.code === 'Space' || e.code === 'Enter')) {
+      this.hideQuestBubble();
+    }
   }
 
   showInteractPrompt(html, worldPos) {
@@ -548,13 +572,6 @@ export default class QuestSystem {
     const y = (-vec.y * 0.5 + 0.5) * window.innerHeight;
     this.questBubble.style.left = x + 'px';
     this.questBubble.style.top = (y - 20) + 'px';
-  }
-
-  _onKeyDown(e) {
-    if (e.repeat) return;
-    if (e.code === 'KeyE' || e.code === 'Space' || e.code === 'Enter') {
-      this.hideQuestBubble();
-    }
   }
 
   update(delta) {
@@ -596,7 +613,17 @@ export default class QuestSystem {
     if (this.questBubbleActive) {
       this.hideInteractPrompt();
       let bubbleTarget;
-      if (this.beeQuestState === 'talking' || this.beeQuestState === 'following' || this.beeQuestState === 'bee_friend') {
+      if (this._bubbleOwner === 'bee' && this.bee) {
+        bubbleTarget = this.bee.position;
+      } else if (this._bubbleOwner === 'fox' && this.fox) {
+        bubbleTarget = this.fox.position;
+      } else if (this._bubbleOwner === 'hog' && this.hog) {
+        bubbleTarget = this.hog.position;
+      } else if (this._bubbleOwner === 'pig' && this.pig) {
+        bubbleTarget = this.pig.position;
+      } else if (this._bubbleOwner === 'dog' && this.dog) {
+        bubbleTarget = this.dog.position;
+      } else if (this.beeQuestState === 'talking' || this.beeQuestState === 'following' || this.beeQuestState === 'bee_friend') {
         bubbleTarget = this.bee ? this.bee.position : null;
       } else if (this.foxQuestState === 'intro' || this.foxQuestState === 'friend') {
         bubbleTarget = this.fox ? this.fox.position : null;
@@ -636,7 +663,7 @@ export default class QuestSystem {
       if (distToDog < interactionDist) {
         this.showInteractPrompt('Нажми <b>E</b> чтобы поговорить', dogPos);
         if (this.game.input.wasPressed('KeyE')) {
-          this.showQuestBubble('Я спрятал косточку и забыл где, вот бы кто-нибудь помог мне ее найти..');
+          this.showQuestBubble('Я спрятал косточку и забыл где, вот бы кто-нибудь помог мне ее найти..', 'dog');
           this.questState = 'SEARCHING_BONE';
         }
       } else {
@@ -647,7 +674,7 @@ export default class QuestSystem {
         this.showInteractPrompt('Нажми <b>E</b> чтобы поднять косточку', this.bone.position);
         if (this.game.input.wasPressed('KeyE')) {
           this.bone.visible = false;
-          this.showQuestBubble('Вы нашли косточку!');
+          this.showQuestBubble('Вы нашли косточку!', 'dog');
           this.questState = 'HAS_BONE';
         }
       } else {
@@ -657,9 +684,9 @@ export default class QuestSystem {
       if (distToDog < interactionDist) {
         this.showInteractPrompt('Нажми <b>E</b> чтобы отдать косточку', dogPos);
         if (this.game.input.wasPressed('KeyE')) {
-          this.friends++;
-          this.friendCounterEl.innerHTML = '<b>Друзья:</b> ' + this.friends + '/6';
-          this.showQuestBubble('Ого! Ты нашел мою косточку, спасибо! Меня, кстати, зовут Регги, давай дружить!');
+    this.friends++;
+    this.friendCounterEl.innerHTML = '<b>Друзья:</b> ' + this.friends + '/5';
+          this.showQuestBubble('Ого! Ты нашел мою косточку, спасибо! Меня, кстати, зовут Регги, давай дружить!', 'dog');
           this.questState = 'FRIEND_MADE';
         }
       } else {
@@ -669,7 +696,7 @@ export default class QuestSystem {
       if (distToDog < interactionDist && !this.questBubbleActive) {
         this.showInteractPrompt('Нажми <b>E</b> чтобы поговорить', dogPos);
         if (this.game.input.wasPressed('KeyE')) {
-          this.showQuestBubble('Гав! Я твой друг!');
+          this.showQuestBubble('Гав! Я твой друг!', 'dog');
         }
       } else {
         this.hideInteractPrompt();
@@ -679,7 +706,7 @@ export default class QuestSystem {
     if (this.beeReady && this.beeQuestState === 'idle' && distToBee < interactionDist && !this.questBubbleActive) {
       this.showInteractPrompt('Нажми <b>E</b> чтобы поговорить', this.bee.position);
       if (this.game.input.wasPressed('KeyE')) {
-        this.showQuestBubble('Я никак не могу найти цветочек! Мне очень нужен цветочек! Поможешь мне найти его?');
+        this.showQuestBubble('Я никак не могу найти цветочек! Мне очень нужен цветочек! Поможешь мне найти его?', 'bee');
         this.beeQuestState = 'talking';
       }
     } else if (this.beeReady && this.beeQuestState === 'idle') {
@@ -701,7 +728,7 @@ export default class QuestSystem {
       if (distToFox < interactionDist && !this.questBubbleActive && !this.quizActive) {
         this.showInteractPrompt('Нажми <b>E</b> чтобы поговорить', fx);
         if (this.game.input.wasPressed('KeyE')) {
-          this.showQuestBubble('Друзья загадали мне загадки, а я никак не могу их отгадать. Может ты сможешь?');
+          this.showQuestBubble('Друзья загадали мне загадки, а я никак не могу их отгадать. Может ты сможешь?', 'fox');
           this.foxQuestState = 'intro';
         }
       } else {
@@ -715,7 +742,7 @@ export default class QuestSystem {
       if (distToFox < interactionDist && !this.questBubbleActive && !this.quizActive) {
         this.showInteractPrompt('Нажми <b>E</b> чтобы поговорить', fx);
         if (this.game.input.wasPressed('KeyE')) {
-          this.showQuestBubble('Спасибо, что помог с загадками!');
+          this.showQuestBubble('Спасибо, что помог с загадками!', 'fox');
         }
       } else {
         this.hideInteractPrompt();
@@ -730,7 +757,7 @@ export default class QuestSystem {
       if (d < interactionDist) {
         this.showInteractPrompt('Нажми <b>E</b> чтобы поговорить', this.pig.position);
         if (this.game.input.wasPressed('KeyE')) {
-          this.showQuestBubble('Мне так одиноко и грустно, хочется с кем-нибудь познакомиться..');
+          this.showQuestBubble('Мне так одиноко и грустно, хочется с кем-нибудь познакомиться..', 'pig');
           this.pigQuestState = 'intro';
         }
         nearMatchable = true;
@@ -749,7 +776,7 @@ export default class QuestSystem {
       if (d < interactionDist) {
         this.showInteractPrompt('Нажми <b>E</b> чтобы поговорить', this.hog.position);
         if (this.game.input.wasPressed('KeyE')) {
-          this.showQuestBubble('Я уже так долго не могу найти никого подходящего мне, наверное я всегда буду одинок...');
+          this.showQuestBubble('Я уже так долго не могу найти никого подходящего мне, наверное я всегда буду одинок...', 'hog');
           this.hogQuestState = 'intro';
         }
         nearMatchable = true;
@@ -771,7 +798,7 @@ export default class QuestSystem {
       if (distToBeeFriend < interactionDist && !this.questBubbleActive) {
         this.showInteractPrompt('Нажми <b>E</b> чтобы поговорить', beeWorldPos);
         if (this.game.input.wasPressed('KeyE')) {
-          this.showQuestBubble('Ж-ж-ж! Спасибо, что ты мой друг!');
+          this.showQuestBubble('Ж-ж-ж! Спасибо, что ты мой друг!', 'bee');
         }
       } else {
         this.hideInteractPrompt();
@@ -812,9 +839,9 @@ export default class QuestSystem {
       this.bee.position.copy(this.beeStartPos).lerp(this.questFlower.position, 1);
       this.bee.position.y += 0.3;
       this.friends++;
-      this.friendCounterEl.innerHTML = '<b>Друзья:</b> ' + this.friends + '/6';
+      this.friendCounterEl.innerHTML = '<b>Друзья:</b> ' + this.friends + '/5';
       this.beeQuestState = 'bee_friend';
-      this.showQuestBubble('Спасибо, что помог! Ты очень добрый, давай станем друзьями?');
+      this.showQuestBubble('Спасибо, что помог! Ты очень добрый, давай станем друзьями?', 'bee');
       return;
     }
     const t = this.beeFlyProgress;

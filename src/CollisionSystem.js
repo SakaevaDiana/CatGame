@@ -5,7 +5,9 @@ export default class CollisionSystem {
   }
 
   addRect(x, z, w, d, h = Infinity) {
-    this.obstacles.push({ x: x - w / 2, z: z - d / 2, w, d, h });
+    const obs = { x: x - w / 2, z: z - d / 2, w, d, h };
+    this.obstacles.push(obs);
+    return obs;
   }
 
   collides(px, pz, pw, pd, py = 0) {
