@@ -106,7 +106,7 @@ export default class QuestSystem {
   async loadDog() {
     const loader = new GLTFLoader();
     try {
-      const gltf = await loader.loadAsync('/assets/models/animal-dog.glb');
+      const gltf = await loader.loadAsync('./assets/models/animal-dog.glb');
       const model = gltf.scene;
       model.scale.set(0.6, 0.6, 0.6);
       model.rotation.y = Math.PI;
@@ -126,7 +126,7 @@ export default class QuestSystem {
   async loadBee() {
     const loader = new GLTFLoader();
     try {
-      const gltf = await loader.loadAsync('/assets/models/animal-bee.glb');
+      const gltf = await loader.loadAsync('./assets/models/animal-bee.glb');
       const model = gltf.scene;
       model.scale.set(0.5, 0.5, 0.5);
       model.rotation.y = Math.PI;
@@ -144,7 +144,7 @@ export default class QuestSystem {
   async loadFlower() {
     const loader = new GLTFLoader();
     try {
-      const gltf = await loader.loadAsync('/assets/models/flower.glb');
+      const gltf = await loader.loadAsync('./assets/models/flower.glb');
       const model = gltf.scene;
       model.scale.set(1.2, 1.2, 1.2);
       model.position.set(FLOWER2_POS.x, 0, FLOWER2_POS.z);
@@ -159,7 +159,7 @@ export default class QuestSystem {
   async loadFox() {
     const loader = new GLTFLoader();
     try {
-      const gltf = await loader.loadAsync('/assets/models/animal-fox.glb');
+      const gltf = await loader.loadAsync('./assets/models/animal-fox.glb');
       const model = gltf.scene;
       model.scale.set(0.6, 0.6, 0.6);
       model.rotation.y = Math.PI;
@@ -283,7 +283,7 @@ export default class QuestSystem {
   async loadPig() {
     const loader = new GLTFLoader();
     try {
-      const gltf = await loader.loadAsync('/assets/models/animal-pig.glb');
+      const gltf = await loader.loadAsync('./assets/models/animal-pig.glb');
       const model = gltf.scene;
       model.scale.set(0.6, 0.6, 0.6);
       model.rotation.y = 0;
@@ -299,7 +299,7 @@ export default class QuestSystem {
   async loadHog() {
     const loader = new GLTFLoader();
     try {
-      const gltf = await loader.loadAsync('/assets/models/animal-hog.glb');
+      const gltf = await loader.loadAsync('./assets/models/animal-hog.glb');
       const model = gltf.scene;
       model.scale.set(0.6, 0.6, 0.6);
       model.rotation.y = 0;

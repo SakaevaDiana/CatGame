@@ -8,32 +8,32 @@ import DialogueSystem from './DialogueSystem.js';
 import QuestSystem from './QuestSystem.js';
 
 const ENV = [
-  { path: '/assets/models/nature/tree_oak.glb', scale: 7.0, coll: { w: 2.5, d: 2.5, h: 999 }, instances: [
+  { path: './assets/models/nature/tree_oak.glb', scale: 7.0, coll: { w: 2.5, d: 2.5, h: 999 }, instances: [
     [-12, -8], [10, -10], [15, 12], [-15, 10], [-8, -15], [18, -5], [-18, 5],
     [-14, -12], [22, 3], [-22, -3], [5, -22], [-5, 22],
   ]},
-  { path: '/assets/models/nature/tree_oak_dark.glb', scale: 7.0, coll: { w: 2.5, d: 2.5, h: 999 }, instances: [
+  { path: './assets/models/nature/tree_oak_dark.glb', scale: 7.0, coll: { w: 2.5, d: 2.5, h: 999 }, instances: [
     [12, -14], [5, 18], [-5, -18], [20, 0], [-20, 0], [0, 20], [0, -20],
   ]},
-  { path: '/assets/models/nature/tree_pineRoundA.glb', scale: 6.0, coll: { w: 2.0, d: 2.0, h: 999 }, instances: [
+  { path: './assets/models/nature/tree_pineRoundA.glb', scale: 6.0, coll: { w: 2.0, d: 2.0, h: 999 }, instances: [
     [25, 8], [25, -8], [-25, 8], [-25, -8], [8, 25], [-8, 25], [8, -25], [-8, -25],
   ]},
-  { path: '/assets/models/nature/rock_largeA.glb', scale: 1.5, coll: { w: 1.2, d: 1.2, h: 0.8 }, instances: [
+  { path: './assets/models/nature/rock_largeA.glb', scale: 1.5, coll: { w: 1.2, d: 1.2, h: 0.8 }, instances: [
     [-5, -5], [7, 7], [-9, 9],
   ]},
-  { path: '/assets/models/nature/rock_smallA.glb', scale: 2.0, coll: { w: 0.8, d: 0.8, h: 0.5 }, instances: [
+  { path: './assets/models/nature/rock_smallA.glb', scale: 2.0, coll: { w: 0.8, d: 0.8, h: 0.5 }, instances: [
     [11, -7], [-3, 12], [6, -4], [-7, -8],
   ]},
-  { path: '/assets/models/nature/plant_bush.glb', scale: 2.0, coll: { w: 1.0, d: 1.0, h: 0.6 }, instances: [
+  { path: './assets/models/nature/plant_bush.glb', scale: 2.0, coll: { w: 1.0, d: 1.0, h: 0.6 }, instances: [
     [-2, 5], [3, -6], [-4, -3], [8, 2],
   ]},
-  { path: '/assets/models/nature/plant_bushSmall.glb', scale: 2.0, coll: { w: 0.8, d: 0.8, h: 0.4 }, instances: [
+  { path: './assets/models/nature/plant_bushSmall.glb', scale: 2.0, coll: { w: 0.8, d: 0.8, h: 0.4 }, instances: [
     [4, 4], [-6, -2], [1, -8], [-5, 7],
   ]},
-  { path: '/assets/models/nature/flower_redA.glb', scale: 1.5, coll: null, instances: [
+  { path: './assets/models/nature/flower_redA.glb', scale: 1.5, coll: null, instances: [
     [2, 2], [-3, -4], [5, -2], [-2, 6], [0, -5], [-6, 0],
   ]},
-  { path: '/assets/models/nature/flower_yellowA.glb', scale: 1.5, coll: null, instances: [
+  { path: './assets/models/nature/flower_yellowA.glb', scale: 1.5, coll: null, instances: [
     [1, -3], [-4, 5], [6, 1], [-1, -6], [3, 4],
   ]},
 ];

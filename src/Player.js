@@ -38,7 +38,7 @@ export default class Player {
   async loadModel() {
     const loader = new GLTFLoader();
     try {
-      const gltf = await loader.loadAsync('/assets/models/animal-cat.glb');
+      const gltf = await loader.loadAsync('./assets/models/animal-cat.glb');
       this.model = gltf.scene;
       this.model.scale.set(0.8, 0.8, 0.8);
       this.model.rotation.y = Math.PI;
