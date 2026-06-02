@@ -43,6 +43,7 @@ export default class Player {
       this.model.scale.set(0.8, 0.8, 0.8);
       this.model.rotation.y = Math.PI;
       this.model.position.y = 0;
+      this.model.traverse(c => { if (c.isMesh) { c.castShadow = true; c.receiveShadow = true; } });
       this.group.add(this.model);
 
       if (gltf.animations && gltf.animations.length > 0) {
@@ -68,10 +69,12 @@ export default class Player {
 
     const body = new THREE.Mesh(new THREE.BoxGeometry(0.6, 0.35, 0.7), mat);
     body.position.y = 0.35;
+    body.castShadow = true; body.receiveShadow = true;
     g.add(body);
 
     const head = new THREE.Mesh(new THREE.SphereGeometry(0.25, 8, 8), mat);
     head.position.set(0, 0.6, -0.45);
+    head.castShadow = true; head.receiveShadow = true;
     g.add(head);
 
     const earMat = new THREE.MeshStandardMaterial({ color: 0xff8800 });
@@ -80,6 +83,7 @@ export default class Player {
       const ear = new THREE.Mesh(earGeo, earMat);
       ear.position.set(x, 0.78, -0.4);
       ear.rotation.z = x < 0 ? 0.3 : -0.3;
+      ear.castShadow = true;
       g.add(ear);
     }
 
@@ -89,6 +93,7 @@ export default class Player {
     );
     tail.position.set(0, 0.3, 0.45);
     tail.rotation.x = -0.6;
+    tail.castShadow = true;
     g.add(tail);
 
     const legMat = new THREE.MeshStandardMaterial({ color: 0xffaa00 });
@@ -97,6 +102,7 @@ export default class Player {
     for (const [x, y, z] of legPos) {
       const leg = new THREE.Mesh(legGeo, legMat);
       leg.position.set(x, y, z);
+      leg.castShadow = true;
       g.add(leg);
     }
 
@@ -164,12 +170,14 @@ export default class Player {
     }
 
     const movingNow = this.input.isDown('KeyW') || this.input.isDown('ArrowUp')
-      || this.input.isDown('KeyS') || this.input.isDown('ArrowDown')
-      || Math.abs(this.velocity.x) > 0.01 || Math.abs(this.velocity.z) > 0.01;
+      || this.input.isDown('KeyS') || this.input.isDown('ArrowDown');
     if (movingNow !== this.isMoving && this.mixer) {
       this.isMoving = movingNow;
-      for (const action of Object.values(this.anims)) {
-        this.isMoving ? action.play() : action.stop();
+      if (this.isMoving) {
+        if (this.anims['walk']) { this.anims['walk'].play(); this.anims['walk'].loop = THREE.LoopRepeat; }
+        Object.values(this.anims).forEach(a => { if (a !== this.anims['walk']) a.stop(); });
+      } else {
+        Object.values(this.anims).forEach(a => a.stop());
       }
     }
     if (this.mixer) {

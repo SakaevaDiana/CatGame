@@ -4,6 +4,8 @@ import Player from './Player.js';
 import InputManager from './InputManager.js';
 import CameraController from './CameraController.js';
 import CollisionSystem from './CollisionSystem.js';
+import DialogueSystem from './DialogueSystem.js';
+import QuestSystem from './QuestSystem.js';
 
 const ENV = [
   { path: '/assets/models/nature/tree_oak.glb', scale: 7.0, coll: { w: 2.5, d: 2.5, h: 999 }, instances: [
@@ -61,6 +63,8 @@ export default class Game {
     this.input = new InputManager();
     this.player = new Player(this.scene, this.input, this.collision);
     this.camCtrl = new CameraController(this.camera, this.player);
+    this.dialogue = new DialogueSystem(this);
+    this.quest = new QuestSystem(this);
 
     this.setupLights();
     this.setupGround();
@@ -98,6 +102,7 @@ export default class Game {
   start() {
     this.running = true;
     this.animate();
+    setTimeout(() => this.dialogue.show(), 500);
   }
 
   setupLights() {
@@ -148,6 +153,8 @@ export default class Game {
     const delta = this.clock.getDelta();
     this.player.update(delta);
     this.camCtrl.update(delta);
+    this.dialogue.update(delta);
+    this.quest.update(delta);
     this.renderer.render(this.scene, this.camera);
   }
 }
