@@ -6,6 +6,9 @@ const BONE_POS = { x: -16, z: -14 };
 const BEE_POS = { x: 3, z: 3 };
 const FLOWER2_POS = { x: -12, z: 8 };
 const FOX_POS = { x: -5, z: -10 };
+const PIG_POS = { x: 12, z: 12 };
+const HOG_POS = { x: -18, z: -5 };
+const MEET_POS = { x: 0, z: 0 };
 
 const RIDDLES = [
   {
@@ -62,6 +65,18 @@ export default class QuestSystem {
     this.foxQuestState = 'idle';
     this.foxQuizIndex = 0;
 
+    this.pig = null;
+    this.hog = null;
+    this.pigReady = false;
+    this.hogReady = false;
+    this.pigQuestState = 'idle';
+    this.hogQuestState = 'idle';
+    this.matchmaking = false;
+    this.matchPhase = null;
+    this.matchTime = 0;
+    this.matchOverlay = null;
+    this.cutsceneBubble = null;
+
     this.quizPanel = null;
     this.quizActive = false;
 
@@ -70,6 +85,7 @@ export default class QuestSystem {
     this.questBubbleActive = false;
     this._justDismissed = false;
     this._onKeyDown = this._onKeyDown.bind(this);
+    this._onCutsceneKeyDown = this._onCutsceneKeyDown.bind(this);
 
     this.createBone();
     this.createFriendCounter();
@@ -79,6 +95,9 @@ export default class QuestSystem {
     this.loadBee();
     this.loadFlower();
     this.loadFox();
+    this.loadPig();
+    this.loadHog();
+    this.createCutsceneElements();
   }
 
   async loadDog() {
@@ -258,6 +277,141 @@ export default class QuestSystem {
     this.showQuestBubble('Ты такой умный! Может станем друзьями?');
   }
 
+  async loadPig() {
+    const loader = new GLTFLoader();
+    try {
+      const gltf = await loader.loadAsync('/assets/models/animal-pig.glb');
+      const model = gltf.scene;
+      model.scale.set(0.6, 0.6, 0.6);
+      model.rotation.y = 0;
+      model.position.set(PIG_POS.x, 0, PIG_POS.z);
+      model.traverse(c => { if (c.isMesh) { c.castShadow = true; c.receiveShadow = true; } });
+      this.game.scene.add(model);
+      this.pig = model;
+      this.pigReady = true;
+    } catch (err) { console.warn('Failed to load pig GLTF:', err); }
+    this.game.collision.addRect(PIG_POS.x, PIG_POS.z, 1, 1, 0.5);
+  }
+
+  async loadHog() {
+    const loader = new GLTFLoader();
+    try {
+      const gltf = await loader.loadAsync('/assets/models/animal-hog.glb');
+      const model = gltf.scene;
+      model.scale.set(0.6, 0.6, 0.6);
+      model.rotation.y = 0;
+      model.position.set(HOG_POS.x, 0, HOG_POS.z);
+      model.traverse(c => { if (c.isMesh) { c.castShadow = true; c.receiveShadow = true; } });
+      this.game.scene.add(model);
+      this.hog = model;
+      this.hogReady = true;
+    } catch (err) { console.warn('Failed to load hog GLTF:', err); }
+    this.game.collision.addRect(HOG_POS.x, HOG_POS.z, 1, 1, 0.5);
+  }
+
+  createCutsceneElements() {
+    const overlay = document.createElement('div');
+    overlay.id = 'match-overlay';
+    overlay.style.display = 'none';
+    document.body.appendChild(overlay);
+    this.matchOverlay = overlay;
+
+    const bubble = document.createElement('div');
+    bubble.className = 'quest-bubble';
+    bubble.id = 'cutscene-bubble';
+    const text = document.createElement('div');
+    text.className = 'quest-bubble-text';
+    const tail = document.createElement('div');
+    tail.className = 'quest-bubble-tail';
+    bubble.appendChild(text);
+    bubble.appendChild(tail);
+    bubble.style.display = 'none';
+    document.body.appendChild(bubble);
+    this.cutsceneBubble = bubble;
+  }
+
+  startMatchmaking() {
+    this.matchmaking = true;
+    this.matchPhase = 'fade_in';
+    this.matchTime = 0;
+    this.matchOverlay.style.display = 'block';
+    this.matchOverlay.style.opacity = '0';
+  }
+
+  updateMatchmaking(delta) {
+    if (!this.matchmaking) return;
+
+    this.matchTime += delta;
+
+    if (this.matchPhase === 'fade_in') {
+      const t = Math.min(this.matchTime / 1, 1);
+      this.matchOverlay.style.opacity = t;
+      if (t >= 1) {
+        this.matchPhase = 'moving';
+        this.matchTime = 0;
+        this.pig.position.set(PIG_POS.x, 0, PIG_POS.z);
+        this.hog.position.set(HOG_POS.x, 0, HOG_POS.z);
+      }
+    } else if (this.matchPhase === 'moving') {
+      const t = Math.min(this.matchTime / 2, 1);
+      this.pig.position.lerpVectors(
+        new THREE.Vector3(PIG_POS.x, 0, PIG_POS.z),
+        new THREE.Vector3(MEET_POS.x - 0.6, 0, MEET_POS.z),
+        t
+      );
+      this.hog.position.lerpVectors(
+        new THREE.Vector3(HOG_POS.x, 0, HOG_POS.z),
+        new THREE.Vector3(MEET_POS.x + 0.6, 0, MEET_POS.z),
+        t
+      );
+      this.pig.rotation.y = Math.PI / 2;
+      this.hog.rotation.y = -Math.PI / 2;
+      if (t >= 1) {
+        this.matchPhase = 'fade_out';
+        this.matchTime = 0;
+      }
+    } else if (this.matchPhase === 'fade_out') {
+      const t = Math.min(this.matchTime / 1, 1);
+      this.matchOverlay.style.opacity = 1 - t;
+      if (t >= 1) {
+        this.matchOverlay.style.display = 'none';
+        this.matchPhase = 'talking';
+        this.matchTime = 0;
+        const bubble = this.cutsceneBubble;
+        const bt = bubble.querySelector('.quest-bubble-text');
+        bt.textContent = 'Спасибо, что познакомил нас!';
+        bubble.style.display = 'block';
+        this.game.input.clearJustPressed();
+        window.addEventListener('keydown', this._onCutsceneKeyDown);
+      }
+    } else if (this.matchPhase === 'talking') {
+      const mid = new THREE.Vector3(MEET_POS.x, 0, MEET_POS.z);
+      const vec = new THREE.Vector3(mid.x, mid.y + 1.5, mid.z);
+      vec.project(this.game.camera);
+      const x = (vec.x * 0.5 + 0.5) * window.innerWidth;
+      const y = (-vec.y * 0.5 + 0.5) * window.innerHeight;
+      this.cutsceneBubble.style.left = x + 'px';
+      this.cutsceneBubble.style.top = (y - 20) + 'px';
+    }
+  }
+
+  _onCutsceneKeyDown(e) {
+    if (e.repeat) return;
+    if (e.code === 'KeyE' || e.code === 'Space' || e.code === 'Enter') {
+      this.finishMatchmaking();
+    }
+  }
+
+  finishMatchmaking() {
+    window.removeEventListener('keydown', this._onCutsceneKeyDown);
+    this.cutsceneBubble.style.display = 'none';
+    this.matchmaking = false;
+    this.pigQuestState = 'matchmade';
+    this.hogQuestState = 'matchmade';
+    this.friends++;
+    this.friendCounterEl.innerHTML = '<b>Друзья:</b> ' + this.friends + '/6';
+  }
+
   createPlaceholderDog() {
     const g = new THREE.Group();
     const bodyMat = new THREE.MeshStandardMaterial({ color: 0xc97a4d });
@@ -397,6 +551,7 @@ export default class QuestSystem {
   }
 
   _onKeyDown(e) {
+    if (e.repeat) return;
     if (e.code === 'KeyE' || e.code === 'Space' || e.code === 'Enter') {
       this.hideQuestBubble();
     }
@@ -434,6 +589,8 @@ export default class QuestSystem {
         this.foxQuestState = 'active';
         this.startQuiz();
       }
+      if (this.pigQuestState === 'intro') this.pigQuestState = 'talked';
+      if (this.hogQuestState === 'intro') this.hogQuestState = 'talked';
     }
 
     if (this.questBubbleActive) {
@@ -443,6 +600,10 @@ export default class QuestSystem {
         bubbleTarget = this.bee ? this.bee.position : null;
       } else if (this.foxQuestState === 'intro' || this.foxQuestState === 'friend') {
         bubbleTarget = this.fox ? this.fox.position : null;
+      } else if (this.hogQuestState === 'intro') {
+        bubbleTarget = this.hog ? this.hog.position : null;
+      } else if (this.pigQuestState === 'intro') {
+        bubbleTarget = this.pig ? this.pig.position : null;
       } else {
         bubbleTarget = this.dog ? this.dog.position : null;
       }
@@ -456,6 +617,12 @@ export default class QuestSystem {
     }
 
     this.updateBeeFollowing(delta);
+    this.updateMatchmaking(delta);
+
+    if (this.matchmaking) {
+      this.hideInteractPrompt();
+      return;
+    }
 
     if (this.beeQuestState === 'flying_to_flower') {
       this.updateBeeFlyToFlower(delta);
@@ -554,6 +721,49 @@ export default class QuestSystem {
         this.hideInteractPrompt();
       }
     }
+
+    const bothTalked = this.pigQuestState === 'talked' && this.hogQuestState === 'talked';
+    let nearMatchable = false;
+
+    if (this.pig && this.pigReady && this.pigQuestState === 'idle' && !this.questBubbleActive && !this.quizActive) {
+      const d = Math.sqrt((px - PIG_POS.x) ** 2 + (pz - PIG_POS.z) ** 2);
+      if (d < interactionDist) {
+        this.showInteractPrompt('Нажми <b>E</b> чтобы поговорить', this.pig.position);
+        if (this.game.input.wasPressed('KeyE')) {
+          this.showQuestBubble('Мне так одиноко и грустно, хочется с кем-нибудь познакомиться..');
+          this.pigQuestState = 'intro';
+        }
+        nearMatchable = true;
+      }
+    } else if (this.pig && this.pigReady && bothTalked && !this.questBubbleActive && !this.quizActive) {
+      const d = Math.sqrt((px - PIG_POS.x) ** 2 + (pz - PIG_POS.z) ** 2);
+      if (d < interactionDist) {
+        this.showInteractPrompt('Нажми <b>E</b> чтобы познакомить свинку и кабанчика', this.pig.position);
+        if (this.game.input.wasPressed('KeyE')) this.startMatchmaking();
+        nearMatchable = true;
+      }
+    }
+
+    if (this.hog && this.hogReady && this.hogQuestState === 'idle' && !this.questBubbleActive && !this.quizActive) {
+      const d = Math.sqrt((px - HOG_POS.x) ** 2 + (pz - HOG_POS.z) ** 2);
+      if (d < interactionDist) {
+        this.showInteractPrompt('Нажми <b>E</b> чтобы поговорить', this.hog.position);
+        if (this.game.input.wasPressed('KeyE')) {
+          this.showQuestBubble('Я уже так долго не могу найти никого подходящего мне, наверное я всегда буду одинок...');
+          this.hogQuestState = 'intro';
+        }
+        nearMatchable = true;
+      }
+    } else if (this.hog && this.hogReady && bothTalked && !this.questBubbleActive && !this.quizActive) {
+      const d = Math.sqrt((px - HOG_POS.x) ** 2 + (pz - HOG_POS.z) ** 2);
+      if (d < interactionDist) {
+        this.showInteractPrompt('Нажми <b>E</b> чтобы познакомить свинку и кабанчика', this.hog.position);
+        if (this.game.input.wasPressed('KeyE')) this.startMatchmaking();
+        nearMatchable = true;
+      }
+    }
+
+    if (!nearMatchable) this.hideInteractPrompt();
 
     if (this.beeQuestState === 'bee_friend' && this.bee) {
       const beeWorldPos = this.bee.position;
